@@ -58,7 +58,7 @@ process get_snp_list {
         bcftools view --regions ${params.chunk} ${vcf_file} -Oz -o ${vcf_ref_chunk}
         bcftools query -f '%CHROM\\t%POS\\t%POS\\n' ${vcf_ref_chunk} > ${base}.map
         awk -F' ' '{print \$1}' ${base}.map | sort -n | uniq > ${chromFile}
-        awk -F'\\t' '{print \$1"\\t"\$2"\\t"\$3+1"\\t"\$1" dna:chromosome chromosome:GRCh37:"\$1":"\$2":"\$3+1":1"}' ${base}.map > ${subset_map_ref}
+        awk -F'\\t' '{print \$1"\\t"\$2-1"\\t"\$3"\\t"\$1" dna:chromosome chromosome:GRCh37:"\$1":"\$2-1":"\$3":1"}' ${base}.map > ${subset_map_ref}
         sort -R ${base}.map | tail -n ${subset_size} > ${subset_map_target}
         """
 }
@@ -71,7 +71,7 @@ process subset_vcf {
     input:
         set file(vcf_file), file(subset_map_ref), file(subset_map_target) from get_snp_list
     output:
-        set file(vcf_file), file(subset_map_ref), file(subset_map_target), file(vcf_ref), file(vcf_target) into subset_vcf_ref
+        set file(vcf_file), file(subset_map_ref), file(subset_map_target), file(vcf_ref), file(vcf_target) into subset_vcf_ref,subset_vcf_ref_1
     script:
         base = file(vcf_file.baseName).baseName
         vcf_ref = "refPanel_testdata.vcf.gz"
@@ -183,24 +183,61 @@ process vcf_to_m3vcf {
 Subset a fasta file based on a bed file
 """
 process subset_fasta {
-    tag "subset_fasta_${base}"
+    tag "subset_fasta_${subset_map_ref.baseName}"
     label "medmem"
-    publishDir "${params.publishDir}", overwrite: true, mode:'copy', pattern: "${ref_fasta}*"
 
     input:
-    set file(vcf_file), file(map_ref), file(map_target) from get_snp_list_1
+    set file(vcf_file), file(subset_map_ref), file(subset_map_target), file(vcf_ref), file(vcf_target) from subset_vcf_ref_1
 
     output:
-    set file(ref_fasta), file("${ref_fasta}.fai") into subset_fasta
+    file(ref_fasta) into subset_fasta
 
     script:
-    base = map_ref.baseName
-    ref_fasta = "hg19_testdata.fasta"
+    ref_fasta = "hg19_testdata_temp.fasta"
     """
-    bedtools getfasta -fi ${params.reference_genome} -bed ${map_ref} -fo ${ref_fasta} -name
-    samtools faidx ${ref_fasta}
+    bedtools getfasta -fi ${params.reference_genome} -bed ${vcf_target} -fo ${ref_fasta}
     """
 }
+
+
+"""
+Fix header of fasta file
+"""
+process fix_fasta {
+    tag "fix_fasta_${fasta_in.baseName}"
+    label "medmem"
+
+    input:
+    file(fasta_in) from subset_fasta
+
+    output:
+    file(fasta_out) into fix_fasta
+
+    script:
+    fasta_out = "hg19_testdata.fasta"
+    template "fix_fasta_header.py"
+}
+
+"""
+Index fasta file
+"""
+process index_fasta {
+    tag "index_fasta_${fasta.baseName}"
+    label "medmem"
+    publishDir "${params.publishDir}", overwrite: true, mode:'copy', pattern: "${fasta}*"
+
+    input:
+    file(fasta) from fix_fasta
+
+    output:
+    set file(fasta), file("${fasta}.fai") into index_fasta
+
+    script:
+    """
+    samtools faidx ${fasta}
+    """
+}
+
 
 """
 Generate test genetic map 
