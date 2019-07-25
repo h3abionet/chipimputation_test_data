@@ -13,6 +13,7 @@ args = parser.parse_args()
 def fix_fasta_header(fasta_in, fasta_out):
     '''
     '''
+    nline = 1
     out = open(fasta_out, 'w')
     for line in open(fasta_in):
         if line.startswith(">"):
@@ -20,9 +21,10 @@ def fix_fasta_header(fasta_in, fasta_out):
             try:
                 chr = line[0]
                 pos = line[1].split("-")
-                start = pos[0]
-                end = pos[1]
-                line = ">1 dna:chromosome chromosome:GRCh37:{0}:{1}:{2}:1".format(chr, start, end)+"\\n"
+                start = pos[1]
+                end = str(int(pos[1])+1)
+                line = ">{3} dna:chromosome chromosome:GRCh37:{0}:{1}-{2}:1".format(chr, start, end, nline)+"\n"
+                nline += 1
             except:
                 continue
         out.writelines(line)

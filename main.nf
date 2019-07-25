@@ -160,63 +160,23 @@ process vcf_to_m3vcf {
 }
 
 
-//"""
-//Generate max and min for each chromosome from a bed file
-//"""
-//process get_coordinates {
-//    tag "get_coordinates_${base}"
-//    label "medmem"
-//    publishDir "${params.outDir}/testdata", overwrite: true, mode:'copy'
-//    input:
-//        set file(vcf_file), file(subset_map_ref), file(subset_map_target) from get_snp_list_1
-//    output:
-//        set file(bed_output), file(subset_map_ref) into get_coordinates
-//    script:
-//        base = subset_map_target.baseName
-//        bedFile = subset_map_target
-//        bed_output = "${base}_coordinates.bed"
-//        template "get_coordinates_from_bed.py"
-//}
-
-
 """
 Subset a fasta file based on a bed file
 """
+chrm = params.chunk.split(':')[0]
 process subset_fasta {
-    tag "subset_fasta_${subset_map_ref.baseName}"
+    tag "subset_fasta_${chrm}"
     label "medmem"
 
-    input:
-    set file(vcf_file), file(subset_map_ref), file(subset_map_target), file(vcf_ref), file(vcf_target) from subset_vcf_ref_1
-
     output:
-    file(ref_fasta) into subset_fasta
+    file(fasta_out) into subset_fasta
 
     script:
-    ref_fasta = "hg19_testdata_temp.fasta"
-    """
-    bedtools getfasta -fi ${params.reference_genome} -bed ${vcf_target} -fo ${ref_fasta}
-    """
+    fasta_in = params.reference_genome
+    fasta_out = "hg19_testdata_${chrm}.fasta"
+    template "get_fasta_chrom.py"
 }
 
-
-"""
-Fix header of fasta file
-"""
-process fix_fasta {
-    tag "fix_fasta_${fasta_in.baseName}"
-    label "medmem"
-
-    input:
-    file(fasta_in) from subset_fasta
-
-    output:
-    file(fasta_out) into fix_fasta
-
-    script:
-    fasta_out = "hg19_testdata.fasta"
-    template "fix_fasta_header.py"
-}
 
 """
 Index fasta file
@@ -224,17 +184,18 @@ Index fasta file
 process index_fasta {
     tag "index_fasta_${fasta.baseName}"
     label "medmem"
-    publishDir "${params.publishDir}", overwrite: true, mode:'copy', pattern: "${fasta}*"
+    publishDir "${params.publishDir}", overwrite: true, mode:'copy', pattern: "${fasta}.*"
 
     input:
-    file(fasta) from fix_fasta
+    file(fasta) from subset_fasta
 
     output:
-    set file(fasta), file("${fasta}.fai") into index_fasta
+    set file("${fasta}.gz"), file("${fasta}.fai") into index_fasta
 
     script:
     """
     samtools faidx ${fasta}
+    bgzip ${fasta}
     """
 }
 
