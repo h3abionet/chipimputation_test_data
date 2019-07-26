@@ -173,7 +173,7 @@ process subset_fasta {
 
     script:
     fasta_in = params.reference_genome
-    fasta_out = "hg19_testdata_${chrm}.fasta"
+    fasta_out = "hg19_testdata.fasta"
     template "get_fasta_chrom.py"
 }
 
