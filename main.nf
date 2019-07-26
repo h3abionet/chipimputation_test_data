@@ -237,9 +237,7 @@ process subset_chip {
     set file(map_ref), file(out_chip) into subset_chip
 
     script:
-    chip = file(params.h3achip)
-    base = file(file(chip).baseName).baseName
     subset_map = map_ref
-    out_chip = "${base}_testdata.csv"
+    out_chip = "Chip_testdata.csv"
     template "subset_chip.py"
 }
