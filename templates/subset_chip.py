@@ -22,7 +22,7 @@ def subset_map(subset_map, out_chip):
         try:
             chr = dat[0]
             pos = dat[1]
-            data.append('\t'.join([chr, pos, pos])+'\\t')
+            data.append('\t'.join([chr, pos, pos])+'\\n')
         except:
             continue
     random.shuffle(data)
