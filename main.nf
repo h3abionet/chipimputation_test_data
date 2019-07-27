@@ -237,7 +237,7 @@ process subset_chip {
     set file(map_ref), file(out_chip) into subset_chip
 
     script:
-    subset_map = map_ref
+    subset_map = map_target
     out_chip = "Chip_testdata.csv"
     template "subset_chip.py"
 }
